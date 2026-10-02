@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>City Library (Static Demo)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+body { background: #f4f6f9; color: #1f2937; line-height: 1.5; }
+a { color: #1f4e79; cursor: pointer; }
+.site-header { background: #1f4e79; color: #fff; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 14px 24px; }
+.brand { font-size: 20px; font-weight: bold; }
+.site-header nav ul { list-style: none; display: flex; flex-wrap: wrap; gap: 16px; }
+.site-header nav a { color: #fff; padding: 6px 4px; border-bottom: 2px solid transparent; }
+.site-header nav a.active { border-bottom: 2px solid #ffd54f; }
+main { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
+.page-box { background: #fff; padding: 24px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.page-box.narrow { max-width: 460px; margin: 0 auto; }
+h1 { color: #1f4e79; margin-bottom: 14px; }
+h2 { color: #1f4e79; margin: 18px 0 10px; }
+.hero { text-align: center; background: #fff; padding: 50px 24px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); margin-bottom: 24px; }
+.btn { display: inline-block; background: #1f4e79; color: #fff; padding: 10px 22px; border-radius: 6px; margin: 4px; border: none; cursor: pointer; font-size: 14px; }
+.btn:hover { background: #163a5c; }
+.btn-outline { background: transparent; color: #1f4e79; border: 2px solid #1f4e79; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.card { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+form label { display: block; margin: 12px 0 4px; font-weight: 600; font-size: 14px; }
+form input, form textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+form small { color: #64748b; font-size: 12px; }
+form button { margin-top: 18px; padding: 10px 20px; background: #1f4e79; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+.hint { margin-top: 14px; font-size: 14px; }
+.hidden { display: none; }
+.alert, #formMsg { padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 14px; font-weight: bold; }
+.alert.success, #formMsg.success { background: #dcfce7; color: #15803d; }
+.alert.error, #formMsg.error { background: #fee2e2; color: #b91c1c; }
+.data-table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+.data-table th, .data-table td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; font-size: 14px; }
+.data-table th { background: #e8eef7; }
+.search-bar { display: flex; gap: 8px; margin-bottom: 10px; max-width: 400px; }
+.search-bar input { flex: 1; }
+.search-bar button { padding: 0 18px; background: #1f4e79; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+.site-footer { text-align: center; padding: 20px; color: #64748b; font-size: 13px; }
+.banner { background:#fff7cc; border-left:4px solid #eab308; padding:10px 14px; font-size:13px; margin-bottom:16px; border-radius:4px; }
+@media (max-width: 640px) { .site-header { flex-direction: column; align-items: flex-start; } }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="brand">📚 City Library <small style="font-weight:normal">(static demo)</small></div>
+  <nav><ul id="navList"></ul></nav>
+</header>
+
+<main>
+  <div class="banner">This GitHub Pages version stores accounts and loans in your browser's local storage, not a real database — it's a demo of the layout and flow only. The graded version uses PHP + MySQL on InfinityFree.</div>
+  <div id="app"></div>
+</main>
+
+<footer class="site-footer">&copy; 2026 City Library — Static demo for CoSc3091 Assignment I.</footer>
+
+<script>
+/* ---------- tiny "database" stored in localStorage ---------- */
+function loadDB(){
+  let db = JSON.parse(localStorage.getItem('libraryDB') || 'null');
+  if (!db) {
+    db = {
+      users: [],
+      books: [
+        {id:1, title:'Introduction to Algorithms', author:'Cormen, Leiserson, Rivest', category:'Computer Science', total:3, available:3},
+        {id:2, title:'Clean Code', author:'Robert C. Martin', category:'Computer Science', total:2, available:2},
+        {id:3, title:'A Brief History of Time', author:'Stephen Hawking', category:'Science', total:2, available:2},
+        {id:4, title:"Things Fall Apart", author:'Chinua Achebe', category:'Literature', total:4, available:4},
+        {id:5, title:'The Pragmatic Programmer', author:'Andrew Hunt, David Thomas', category:'Computer Science', total:2, available:2}
+      ],
+      loans: [],
+      messages: []
+    };
+    saveDB(db);
+  }
+  return db;
+}
+function saveDB(db){ localStorage.setItem('libraryDB', JSON.stringify(db)); }
+let db = loadDB();
+let currentUser = JSON.parse(sessionStorage.getItem('currentUser') || 'null');
+
+/* ---------- routing ---------- */
+const routes = ['home','about','books','contact','register','login','dashboard'];
+function go(route){
+  if ((route === 'dashboard') && !currentUser) route = 'login';
+  if ((route === 'register' || route === 'login') && currentUser) route = 'dashboard';
+  location.hash = route;
+  render();
+}
+window.addEventListener('hashchange', render);
+
+function renderNav(){
+  const route = (location.hash || '#home').slice(1);
+  let links = [
+    ['home','Home'], ['about','About'], ['books','Books'], ['contact','Contact']
+  ];
+  if (currentUser){
+    links.push(['dashboard','Dashboard']);
+  } else {
+    links.push(['login','Login']);
+    links.push(['register','Register']);
+  }
+  document.getElementById('navList').innerHTML = links.map(([r,label]) =>
+    `<li><a class="${route===r?'active':''}" onclick="go('${r}')">${label}</a></li>`
+  ).join('') + (currentUser ? `<li><a onclick="logout()">Logout (${escapeHtml(currentUser.username)})</a></li>` : '');
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---------- page renderers ---------- */
+function render(){
+  renderNav();
+  const route = (location.hash || '#home').slice(1);
+  const app = document.getElementById('app');
+  if (route === 'home') app.innerHTML = pageHome();
+  else if (route === 'about') app.innerHTML = pageAbout();
+  else if (route === 'books') { app.innerHTML = pageBooks(); bindBooks(); }
+  else if (route === 'contact') { app.innerHTML = pageContact(); bindContact(); }
+  else if (route === 'register') { app.innerHTML = pageRegister(); bindRegister(); }
+  else if (route === 'login') { app.innerHTML = pageLogin(); bindLogin(); }
+  else if (route === 'dashboard') { app.innerHTML = pageDashboard(); bindDashboard(); }
+  else app.innerHTML = pageHome();
+}
+
+function pageHome(){
+  return `
+  <section class="hero">
+    <h1>Welcome to City Library</h1>
+    <p>Browse our catalog, create a free account, and borrow books.</p>
+    <a class="btn" onclick="go('books')">Browse Books</a>
+    ${!currentUser ? `<a class="btn btn-outline" onclick="go('register')">Create Account</a>` : ''}
+  </section>
+  <section class="cards">
+    <div class="card"><h3>📖 Wide Catalog</h3><p>Computer Science, Science, and Literature titles.</p></div>
+    <div class="card"><h3>🔐 Accounts</h3><p>Register and log in to unlock your dashboard.</p></div>
+    <div class="card"><h3>🔁 Borrow &amp; Return</h3><p>Borrow an available book and return it anytime.</p></div>
+  </section>`;
+}
+
+function pageAbout(){
+  return `
+  <section class="page-box">
+    <h1>About This Project</h1>
+    <h2>Student Information</h2>
+    <p><strong>Full Name:</strong> [Your Full Name]</p>
+    <p><strong>ID Number:</strong> [Your ID Number]</p>
+    <p><strong>Department:</strong> Computer Science</p>
+    <h2>About Me</h2>
+    <p>I am a Computer Science student studying Web Programming (CoSc3091). I chose the
+    "Online Library Management System" title to practice building a full site with
+    accounts, a catalog, and a working borrow/return flow.</p>
+    <h2>About the System</h2>
+    <p>This static page is a GitHub Pages demo of City Library's layout and flow. The graded
+    submission uses real HTML, CSS, JavaScript, PHP and MySQL, deployed on InfinityFree.</p>
+  </section>`;
+}
+
+function pageBooks(){
+  const rows = db.books.map(b => `
+    <tr>
+      <td>${escapeHtml(b.title)}</td><td>${escapeHtml(b.author)}</td><td>${escapeHtml(b.category)}</td>
+      <td>${b.available} / ${b.total}</td>
+      <td>${currentUser
+            ? (b.available > 0 ? `<button class="btn" data-id="${b.id}" onclick="borrowBook(${b.id})">Borrow</button>` : `<span style="color:#b91c1c">Not available</span>`)
+            : ''}</td>
+    </tr>`).join('');
+  return `
+  <section class="page-box">
+    <h1>Book Catalog</h1>
+    <div class="search-bar"><input id="searchBox" placeholder="Search by title or author"><button onclick="filterBooks()">Search</button></div>
+    <table class="data-table" id="bookTable">
+      <tr><th>Title</th><th>Author</th><th>Category</th><th>Available</th><th></th></tr>
+      ${rows}
+    </table>
+    ${!currentUser ? `<p class="hint"><a onclick="go('login')">Log in</a> or <a onclick="go('register')">create an account</a> to borrow a book.</p>` : ''}
+  </section>`;
+}
+function bindBooks(){
+  document.getElementById('searchBox')?.addEventListener('keyup', filterBooks);
+}
+function filterBooks(){
+  const q = document.getElementById('searchBox').value.toLowerCase();
+  document.querySelectorAll('#bookTable tr').forEach((tr,i) => {
+    if (i===0) return;
+    tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+function borrowBook(id){
+  const book = db.books.find(b=>b.id===id);
+  if (book && book.available > 0){
+    book.available -= 1;
+    db.loans.push({id: Date.now(), userId: currentUser.id, bookId: id, title: book.title, author: book.author, borrowedAt: new Date().toLocaleString(), status:'borrowed'});
+    saveDB(db);
+    render();
+  }
+}
+
+function pageContact(){
+  return `
+  <section class="page-box narrow">
+    <h1>Contact Us</h1>
+    <p>Questions about the library or this project? Send a message below.</p>
+    <p id="formMsg" class="hidden"></p>
+    <form id="contactForm">
+      <label>Name</label><input id="cName">
+      <label>Email</label><input id="cEmail" type="email">
+      <label>Message</label><textarea id="cMsg" rows="5"></textarea>
+      <button type="submit">Send Message</button>
+    </form>
+  </section>`;
+}
+function bindContact(){
+  document.getElementById('contactForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = document.getElementById('cName').value.trim();
+    const email = document.getElementById('cEmail').value.trim();
+    const msg = document.getElementById('cMsg').value.trim();
+    const box = document.getElementById('formMsg');
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!name || !email || !msg){ showMsg(box,'All fields are required.','error'); return; }
+    if (!emailOk){ showMsg(box,'Please enter a valid email address.','error'); return; }
+    db.messages.push({name, email, message: msg, at: new Date().toLocaleString()});
+    saveDB(db);
+    showMsg(box,'Thanks! Your message has been saved.','success');
+    document.getElementById('contactForm').reset();
+  });
+}
+function showMsg(el, text, type){
+  el.textContent = text; el.className = type;
+}
+
+function pageRegister(){
+  return `
+  <section class="page-box narrow">
+    <h1>Create Account</h1>
+    <p id="formMsg" class="hidden"></p>
+    <form id="registerForm">
+      <label>Full Name</label><input id="rFullname">
+      <label>Email</label><input id="rEmail" type="email">
+      <label>Username</label><input id="rUsername">
+      <label>Password</label><input id="rPassword" type="password"><small>At least 6 characters.</small>
+      <label>Confirm Password</label><input id="rConfirm" type="password">
+      <button type="submit">Register</button>
+    </form>
+    <p class="hint">Already have an account? <a onclick="go('login')">Log in</a></p>
+  </section>`;
+}
+function bindRegister(){
+  document.getElementById('registerForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const fullname = document.getElementById('rFullname').value.trim();
+    const email = document.getElementById('rEmail').value.trim();
+    const username = document.getElementById('rUsername').value.trim();
+    const password = document.getElementById('rPassword').value;
+    const confirm = document.getElementById('rConfirm').value;
+    const box = document.getElementById('formMsg');
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    if (!fullname || !email || !username || !password){ showMsg(box,'All fields are required.','error'); return; }
+    if (!emailOk){ showMsg(box,'Please enter a valid email address.','error'); return; }
+    if (password.length < 6){ showMsg(box,'Password must be at least 6 characters.','error'); return; }
+    if (password !== confirm){ showMsg(box,'Passwords do not match.','error'); return; }
+    if (db.users.some(u => u.email===email || u.username===username)){ showMsg(box,'That email or username is already registered.','error'); return; }
+
+    // NOTE: this is a static demo only, so the password is kept in local storage as-is.
+    // The real PHP version hashes it with password_hash() and never stores it in plain text.
+    db.users.push({id: Date.now(), fullname, email, username, password});
+    saveDB(db);
+    go('login');
+  });
+}
+
+function pageLogin(){
+  return `
+  <section class="page-box narrow">
+    <h1>Login</h1>
+    <p id="formMsg" class="hidden"></p>
+    <form id="loginForm">
+      <label>Username or Email</label><input id="lIdentity">
+      <label>Password</label><input id="lPassword" type="password">
+      <button type="submit">Login</button>
+    </form>
+    <p class="hint">No account yet? <a onclick="go('register')">Register</a></p>
+  </section>`;
+}
+function bindLogin(){
+  document.getElementById('loginForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const identity = document.getElementById('lIdentity').value.trim();
+    const password = document.getElementById('lPassword').value;
+    const box = document.getElementById('formMsg');
+    const user = db.users.find(u => (u.username===identity || u.email===identity) && u.password===password);
+    if (!user){ showMsg(box,'Incorrect username/email or password.','error'); return; }
+    currentUser = {id:user.id, username:user.username, fullname:user.fullname};
+    sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+    go('dashboard');
+  });
+}
+function logout(){
+  currentUser = null;
+  sessionStorage.removeItem('currentUser');
+  go('home');
+}
+
+function pageDashboard(){
+  const mine = db.loans.filter(l => l.userId===currentUser.id && l.status==='borrowed');
+  const rows = mine.map(l => `
+    <tr><td>${escapeHtml(l.title)}</td><td>${escapeHtml(l.author)}</td><td>${l.borrowedAt}</td>
+    <td><button class="btn" onclick="returnBook(${l.id})">Return</button></td></tr>`).join('');
+  return `
+  <section class="page-box">
+    <h1>Welcome, ${escapeHtml(currentUser.fullname)} 👋</h1>
+    <p>This is your personal dashboard. View and return the books you've borrowed.</p>
+    <h2>My Borrowed Books</h2>
+    <table class="data-table">
+      <tr><th>Title</th><th>Author</th><th>Borrowed On</th><th>Action</th></tr>
+      ${mine.length ? rows : `<tr><td colspan="4">You haven't borrowed any books yet. <a onclick="go('books')">Browse the catalog</a>.</td></tr>`}
+    </table>
+  </section>`;
+}
+function bindDashboard(){}
+function returnBook(loanId){
+  const loan = db.loans.find(l => l.id===loanId && l.userId===currentUser.id);
+  if (loan){
+    loan.status = 'returned';
+    const book = db.books.find(b=>b.title===loan.title);
+    if (book) book.available += 1;
+    saveDB(db);
+    render();
+  }
+}
+
+render();
+</script>
+</body>
+</html>
